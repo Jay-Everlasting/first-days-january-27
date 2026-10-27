@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Salzburg Alps Trip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+      onerror="this.onerror=null;this.href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css'">
+<style>
+  :root {
+    --ink: #000;
+    --ink-2: #4b4b4b;
+    --ink-3: #8a8a8a;
+    --line: #e6e6e6;
+    --soft: #f5f5f5;
+    --bg: #fff;
+
+    --t-drive: #7a7a7a;
+    --t-hike: #2f7d4a;
+    --t-food: #c26a1b;
+    --t-explore: #2563a8;
+    --t-sled: #6b3fb0;
+    --t-spa: #148a85;
+    --t-home: #a37b00;
+    --t-train: #b3343f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 480px 1fr;
+    height: 100vh;
+    min-width: 1100px;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .side {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--line);
+    min-height: 0;
+  }
+  .head { padding: 32px 36px 20px; }
+  .trip { font-size: 13px; color: var(--ink-3); margin-bottom: 18px; }
+  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .tab {
+    font: inherit;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 10px 0 9px;
+    cursor: pointer;
+    text-align: center;
+    color: var(--ink-2);
+  }
+  .tab b { display: block; font-size: 20px; font-weight: 600; line-height: 1.1; color: var(--ink); }
+  .tab span { font-size: 12px; }
+  .tab:hover { border-color: var(--ink-3); }
+  .tab[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: #cfcfcf; }
+  .tab[aria-selected="true"] b { color: #fff; }
+  .tab:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  .day-title { margin-top: 28px; font-size: 30px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+  .day-meta { margin-top: 8px; font-size: 14px; color: var(--ink-2); display: flex; gap: 18px; }
+  .day-meta strong { font-weight: 600; color: var(--ink); }
+
+  .scroll { overflow-y: auto; padding: 8px 36px 40px; flex: 1; }
+
+  /* ---------- Timeline ---------- */
+  .tl { list-style: none; }
+  .row { display: grid; grid-template-columns: 92px 28px 1fr; column-gap: 14px; }
+  .rail { position: relative; display: flex; justify-content: center; }
+  .rail::before {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0; left: 50%;
+    width: 2px;
+    transform: translateX(-50%);
+    background: var(--ink);
+  }
+  .row.first .rail::before { top: 22px; }
+  .row.last .rail::before { bottom: calc(100% - 22px); }
+
+  .stop .time {
+    padding-top: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    line-height: 1.25;
+  }
+  .stop .time small { display: block; font-weight: 400; color: var(--ink-3); font-size: 12px; }
+  .dot {
+    position: relative; z-index: 1;
+    margin-top: 11px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 2px solid var(--ink);
+    font-size: 11px; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  .row.first .dot, .row.last .dot { background: var(--ink); color: #fff; }
+  .row.last .dot { border-radius: 5px; }
+  .dot.plain { width: 12px; height: 12px; margin-top: 16px; }
+
+  .body { padding: 10px 14px 14px; margin: 2px 0; }
+  .title { font-size: 16px; font-weight: 600; line-height: 1.3; }
+  .desc { margin-top: 3px; color: var(--ink-2); font-size: 14px; }
+  .foot { margin-top: 8px; display: flex; align-items: center; gap: 14px; }
+  .tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--ink-2); }
+  .tag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+  .maplink { font-size: 12px; color: var(--ink-3); text-decoration: none; border-bottom: 1px solid var(--line); }
+  .maplink:hover { color: var(--ink); border-color: var(--ink); }
+
+  .travel .rail::before { background: repeating-linear-gradient(var(--ink-3) 0 4px, transparent 4px 8px); }
+  .travel .info { padding: 8px 14px; font-size: 13px; color: var(--ink-3); display: flex; gap: 8px; align-items: baseline; }
+  .travel .info b { white-space: nowrap; color: var(--ink-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .notes { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+  .notes h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; display: grid; gap: 8px; }
+  .notes li { font-size: 13.5px; color: var(--ink-2); padding-left: 16px; position: relative; }
+  .notes li::before { content: ""; position: absolute; left: 0; top: 8px; width: 6px; height: 1.5px; background: var(--ink-3); }
+
+  /* ---------- Map ---------- */
+  .mapwrap { position: relative; min-height: 0; }
+  #map { position: absolute; inset: 0; background: #f2f2f2; cursor: pointer; }
+  #map .maplibregl-canvas-container.maplibregl-interactive { cursor: pointer; }
+  .hint {
+    position: absolute; right: 24px; top: 24px; z-index: 5;
+    font-size: 13px; color: var(--ink-2);
+    background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 8px 14px;
+    pointer-events: none;
+  }
+  .legend {
+    position: absolute; left: 24px; bottom: 24px; z-index: 5;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 12px; color: var(--ink-2);
+    display: grid; gap: 6px;
+  }
+  .legend div { display: flex; align-items: center; gap: 10px; }
+  .legend i { width: 22px; height: 0; border-top: 2px solid var(--ink); }
+  .legend i.dash { border-top: 2px dashed var(--ink); }
+
+  .pin { width: 26px; height: 26px; }
+  .pin b {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--bg); border: 2px solid var(--ink);
+    display: grid; place-items: center;
+    font: 700 11px "Instrument Sans", sans-serif; color: var(--ink);
+    box-shadow: 0 1px 4px rgba(0,0,0,.18);
+  }
+  .pin span {
+    position: absolute; left: 32px; top: 3px;
+    white-space: nowrap;
+    font: 600 12px "Instrument Sans", sans-serif;
+    background: rgba(255,255,255,.92);
+    padding: 2px 7px; border-radius: 6px;
+  }
+  .maplibregl-ctrl-attrib { font-size: 10px; }
+  .map-msg { padding: 40px; color: var(--ink-2); }
+  .hint .m { display: none; }
+
+  /* ---------- Phone (Galaxy S21 to S25, 360 to 412 px wide) ---------- */
+  @media (max-width: 700px) {
+    html, body { height: auto; }
+    body { font-size: 14px; }
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: auto;
+      min-width: 0;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .side, .head { display: contents; }
+
+    .trip { order: 1; margin: 0; padding: 20px 16px 12px; font-size: 12px; }
+    .tabs {
+      order: 2;
+      position: sticky; top: 0; z-index: 20;
+      background: var(--bg);
+      padding: 8px 16px 10px;
+      gap: 6px;
+      border-bottom: 1px solid var(--line);
+    }
+    .tab { padding: 8px 0 7px; border-radius: 9px; }
+    .tab b { font-size: 18px; }
+    .tab span { font-size: 11px; }
+    .day-title { order: 3; margin: 0; padding: 20px 16px 0; font-size: 24px; }
+    .day-meta { order: 4; margin: 0; padding: 6px 16px 16px; font-size: 13px; gap: 14px; flex-wrap: wrap; }
+
+    .mapwrap { order: 5; height: 340px; margin: 0 16px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+    .hint { top: auto; right: auto; left: 10px; bottom: 30px; font-size: 12px; padding: 6px 10px; border-radius: 8px; }
+    .hint .d { display: none; }
+    .hint .m { display: inline; }
+    .legend { left: 10px; top: 10px; bottom: auto; padding: 7px 10px; font-size: 11px; border-radius: 8px; gap: 3px; }
+    .maplibregl-ctrl-attrib { font-size: 9px; }
+    .legend i { width: 16px; }
+    .pin span { display: none; }
+    .pin, .pin b { width: 24px; height: 24px; }
+
+    .scroll { order: 6; overflow: visible; padding: 12px 16px 40px; }
+    .row { grid-template-columns: 62px 24px 1fr; column-gap: 8px; }
+    .stop .time { font-size: 12px; }
+    .stop .time small { font-size: 11px; }
+    .dot { width: 20px; height: 20px; font-size: 10px; }
+    .dot.plain { width: 11px; height: 11px; margin-top: 15px; }
+    .row.first .rail::before { top: 21px; }
+    .row.last .rail::before { bottom: calc(100% - 21px); }
+    .body { padding: 10px 4px 12px 6px; }
+    .title { font-size: 15px; }
+    .desc { font-size: 13.5px; }
+    .foot { gap: 12px; flex-wrap: wrap; }
+    .maplink { padding: 4px 0; }
+    .travel .info { padding: 6px 6px; font-size: 12.5px; flex-wrap: wrap; column-gap: 6px; row-gap: 0; }
+    .notes { margin-top: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="head">
+      <div class="trip">Salzburg Alps, 1 to 4 January 2027</div>
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <h1 class="day-title" id="dayTitle"></h1>
+      <div class="day-meta" id="dayMeta"></div>
+    </div>
+    <div class="scroll" id="scroll">
+      <ol class="tl" id="timeline"></ol>
+      <section class="notes" id="notes"></section>
+    </div>
+  </aside>
+  <main class="mapwrap">
+    <div id="map"></div>
+    <div class="hint"><span class="d">Click the map to play the route</span><span class="m">Tap the map to play</span></div>
+    <div class="legend">
+      <div><i></i>Road</div>
+      <div><i class="dash"></i>Cable car, walk, sled or train</div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   Trip data. Edit here to change the itinerary.
+   - stop: a place on the timeline. `ll` puts it on the map.
+   - travel: the connector between two stops. `travel` sets how the
+     next map leg is drawn (drive = real roads, others = dashed line).
+   ============================================================ */
+const P = {
+  salzburg:   [47.8000, 13.0440],
+  salzHbf:    [47.8128, 13.0456],
+  home:       [47.7667, 13.3667],
+  village:    [47.7670, 13.3630],
+  promenade:  [47.7640, 13.3610],
+  kripValley: [47.5560, 13.6935],
+  fingers:    [47.5300, 13.6905],
+  lodge:      [47.5335, 13.6935],
+  hallstatt:  [47.5622, 13.6493],
+  hwValley:   [47.4036, 13.6475],
+  hwTop:      [47.3770, 13.6390],
+  gosausee:   [47.5302, 13.4948],
+  goisern:    [47.6380, 13.6190],
+  therme:     [47.7110, 13.6230],
+  innsbruck:  [47.2633, 11.4010],
+};
+
+const gmaps = q => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
+
+const TAGS = {
+  drive:   ["Drive",    "var(--t-drive)"],
+  hike:    ["Hike",     "var(--t-hike)"],
+  food:    ["Food",     "var(--t-food)"],
+  explore: ["Explore",  "var(--t-explore)"],
+  sled:    ["Sledding", "var(--t-sled)"],
+  spa:     ["Spa",      "var(--t-spa)"],
+  home:    ["Home",     "var(--t-home)"],
+  train:   ["Train",    "var(--t-train)"],
+};
+
+const MODES = { drive: "Drive", walk: "Walk", cable: "Cable car", sled: "Sled run", train: "Train" };
+
+const DAYS = [
+  {
+    tab: ["1", "Fri"],
+    title: "Arrival in St. Gilgen",
+    date: "Friday, 1 January",
+    items: [
+      { stop: "Salzburg", time: "Arrival", tag: "drive", desc: "Pick up the car and head into the mountains.", ll: P.salzburg, q: "Salzburg" },
+      { travel: "drive", dur: "45 min" },
+      { stop: "Home in St. Gilgen", time: "Afternoon", tag: "home", desc: "Check in, unpack and settle.", ll: P.home, q: "St. Gilgen" },
+      { travel: "walk", dur: "5 min" },
+      { stop: "St. Gilgen village", time: "Late afternoon", tag: "explore", desc: "Small, walkable old centre.", ll: P.village, q: "St. Gilgen Ortszentrum" },
+      { travel: "walk", dur: "5 min" },
+      { stop: "Wolfgangsee promenade", time: "16:30", sub: "sunset", tag: "explore", desc: "Lakeside walk while the light fades.", ll: P.promenade, q: "Seepromenade St. Gilgen" },
+      { stop: "Dinner", time: "Evening", tag: "food", desc: "New Year's Day, so many places are closed. Book ahead or cook at home.", q: "restaurants St. Gilgen" },
+      { stop: "Night at home", time: "Night", tag: "home", desc: "Early night. Tomorrow starts at 07:30.", q: "St. Gilgen" },
+    ],
+    notes: [
+      "Most shops and many restaurants are closed on New Year's Day.",
+      "Lay out boots and warm layers tonight for the Dachstein morning.",
+    ],
+  },
+  {
+    tab: ["2", "Sat"],
+    title: "Dachstein, Hallstatt and night sledding",
+    date: "Saturday, 2 January",
+    items: [
+      { stop: "Leave St. Gilgen", time: "07:30", tag: "home", desc: "Long day ahead, about 16 hours.", ll: P.home, q: "St. Gilgen" },
+      { travel: "drive", dur: "1 h" },
+      { stop: "Krippenstein cable car", time: "08:30", tag: "hike", desc: "Valley station in Obertraun. Rent snowshoes with the Yeti ticket.", ll: P.kripValley, q: "Dachstein Krippenstein Seilbahn Talstation" },
+      { travel: "cable", dur: "20 min" },
+      { stop: "5fingers snow hike", time: "09:00", sub: "to 12:30", tag: "hike", desc: "Easy marked trail to the viewing platform, plus the Welterbespirale.", ll: P.fingers, q: "5fingers Aussichtsplattform" },
+      { travel: "walk", dur: "15 min" },
+      { stop: "Lunch at Lodge am Krippenstein", time: "12:30", sub: "to 13:30", tag: "food", desc: "Mountain views at 2,000 m. Last cable car down is 16:40.", ll: P.lodge, q: "Lodge am Krippenstein" },
+      { travel: "drive", dur: "30 min", note: "cable car down, then drive", via: { ll: P.kripValley, mode: "cable" } },
+      { stop: "Hallstatt", time: "13:30", sub: "to 16:30", tag: "explore", desc: "Old town and lakefront. Best light before sunset around 16:30.", ll: P.hallstatt, q: "Hallstatt Marktplatz" },
+      { travel: "drive", dur: "1 h 15", note: "via Bad Aussee" },
+      { stop: "Dinner at Hochwurzen", time: "17:45", sub: "to 19:00", tag: "food", desc: "Warm up near the valley station, or eat at a hut on the run.", ll: P.hwValley, q: "Gipfelbahn Hochwurzen Talstation" },
+      { travel: "cable", dur: "10 min", note: "gondola to the summit" },
+      { stop: "Night sledding", time: "19:00", sub: "to 21:30", tag: "sled", desc: "7 km lit run from the summit. Backup: Galsterbergalm.", ll: P.hwTop, q: "Rodelbahn Hochwurzen" },
+      { travel: "drive", dur: "1 h 45", note: "alpine roads at night", via: { ll: P.hwValley, mode: "sled" } },
+      { stop: "Home", time: "23:30", tag: "home", desc: "Back in St. Gilgen.", ll: P.home, q: "St. Gilgen" },
+    ],
+    notes: [
+      "Bring sturdy boots, poles, gloves, a hat, sunglasses and a thermos.",
+      "Strong wind can close upper cable car sections. Check the status before leaving.",
+      "Night sledding times are from last season. Confirm the 2026/27 schedule in December.",
+    ],
+  },
+  {
+    tab: ["3", "Sun"],
+    title: "Lakes, villages and the spa",
+    date: "Sunday, 3 January",
+    items: [
+      { stop: "Leave St. Gilgen", time: "09:00", tag: "home", desc: "Relaxed start. Nothing today is more than an hour from home.", ll: P.home, q: "St. Gilgen" },
+      { travel: "drive", dur: "1 h" },
+      { stop: "Vorderer Gosausee", time: "10:00", sub: "to 12:30", tag: "explore", desc: "Lakeside walk with the Dachstein behind. Lunch in Gosau.", ll: P.gosausee, q: "Vorderer Gosausee" },
+      { travel: "drive", dur: "25 min" },
+      { stop: "Bad Goisern", time: "13:00", sub: "to 14:30", tag: "explore", desc: "Short stroll. Sunday, so most shops are closed.", ll: P.goisern, q: "Bad Goisern" },
+      { travel: "drive", dur: "20 min" },
+      { stop: "EurothermenResort Bad Ischl", time: "15:00", sub: "to 21:00", tag: "spa", desc: "Thermal pools and sauna, open until midnight. Sauna is 16+.", ll: P.therme, q: "EurothermenResort Bad Ischl" },
+      { travel: "drive", dur: "25 min" },
+      { stop: "Home", time: "21:30", tag: "home", desc: "Pack tonight for tomorrow's departure.", ll: P.home, q: "St. Gilgen" },
+    ],
+    notes: [
+      "Bring swimwear, a towel or bathrobe and flip-flops.",
+      "Sauna areas in Austria are usually textile-free.",
+    ],
+  },
+  {
+    tab: ["4", "Mon"],
+    title: "Salzburg and the train to Innsbruck",
+    date: "Monday, 4 January",
+    items: [
+      { stop: "Check out", time: "08:00", tag: "home", desc: "Car loaded the night before.", ll: P.home, q: "St. Gilgen" },
+      { travel: "drive", dur: "45 min" },
+      { stop: "Salzburg Old Town", time: "09:00", sub: "to 13:00", tag: "explore", desc: "Getreidegasse, the cathedral square and Mirabell Gardens.", ll: P.salzburg, q: "Salzburg Altstadt" },
+      { travel: "drive", dur: "15 min" },
+      { stop: "Return the car", time: "13:00", sub: "to 13:30", tag: "drive", desc: "Leave a buffer for the drop-off.", ll: P.salzHbf, q: "Salzburg Hauptbahnhof" },
+      { stop: "Train to Innsbruck", time: "14:00", tag: "train", desc: "From Salzburg Hauptbahnhof. Be on the platform by 13:50.", q: "Salzburg Hauptbahnhof" },
+      { travel: "train", dur: "about 2 h" },
+      { stop: "Innsbruck", time: "16:00", tag: "train", desc: "Next chapter.", ll: P.innsbruck, q: "Innsbruck Hauptbahnhof" },
+    ],
+    notes: [
+      "Confirm the car return location and opening hours in advance.",
+    ],
+  },
+];
+
+/* ============================================================
+   Sidebar (static, no animation)
+   ============================================================ */
+const $ = id => document.getElementById(id);
+let current = 0;
+
+function renderTabs() {
+  $("tabs").innerHTML = DAYS.map((d, i) =>
+    `<button class="tab" role="tab" aria-selected="${i === current}" data-i="${i}">
+       <b>${d.tab[0]}</b><span>${d.tab[1]}, ${i + 1} Jan</span>
+     </button>`).join("");
+  $("tabs").querySelectorAll(".tab").forEach(b =>
+    b.addEventListener("click", () => selectDay(+b.dataset.i)));
+}
+
+function renderDay() {
+  const d = DAYS[current];
+  $("dayTitle").textContent = d.title;
+
+  const stops = d.items.filter(x => x.stop);
+  const mins = d.items.filter(x => x.travel === "drive").reduce((s, x) => s + toMin(x.dur), 0);
+  $("dayMeta").innerHTML =
+    `<span>${d.date}</span><span><strong>${stops.length}</strong> stops</span>` +
+    (mins ? `<span><strong>${fmtMin(mins)}</strong> driving</span>` : "");
+
+  let n = 0;
+  const lastStop = d.items.map(x => !!x.stop).lastIndexOf(true);
+  $("timeline").innerHTML = d.items.map((x, i) => {
+    if (x.travel) {
+      return `<li class="row travel">
+        <div></div><div class="rail"></div>
+        <div class="info"><b>${x.dur}</b><span>${MODES[x.travel]}${x.note ? ", " + x.note : ""}</span></div>
+      </li>`;
+    }
+    const cls = (i === 0 ? " first" : "") + (i === lastStop ? " last" : "");
+    const num = x.ll ? ++n : null;
+    const [label, color] = TAGS[x.tag];
+    return `<li class="row stop${cls}">
+      <div class="time">${x.time}${x.sub ? `<small>${x.sub}</small>` : ""}</div>
+      <div class="rail"><span class="dot${num ? "" : " plain"}">${num ?? ""}</span></div>
+      <div class="body">
+        <div class="title">${x.stop}</div>
+        <div class="desc">${x.desc}</div>
+        <div class="foot">
+          <span class="tag" style="--c:${color}">${label}</span>
+          <a class="maplink" href="${gmaps(x.q)}" target="_blank" rel="noopener">Open in Google Maps</a>
+        </div>
+      </div>
+    </li>`;
+  }).join("");
+
+  $("notes").innerHTML = `<h3>Good to know</h3><ul>${d.notes.map(t => `<li>${t}</li>`).join("")}</ul>`;
+  $("scroll").scrollTop = 0;
+  if (isPhone()) { // bring the new day's title into view under the sticky tabs
+    const y = $("dayTitle").getBoundingClientRect().top + scrollY - $("tabs").offsetHeight;
+    if (scrollY > y) scrollTo({ top: y });
+  }
+}
+
+function toMin(s) {
+  const hm = /(\d+)\s*h\s*(\d+)$/.exec(s);
+  if (hm) return +hm[1] * 60 + +hm[2];
+  const h = /(\d+)\s*h/.exec(s), m = /(\d+)\s*min/.exec(s);
+  return (h ? +h[1] * 60 : 0) + (m ? +m[1] : 0);
+}
+function fmtMin(m) {
+  const h = Math.floor(m / 60), r = m % 60;
+  return h ? `${h} h${r ? " " + r : ""}` : `${r} min`;
+}
+
+/* ============================================================
+   Map: MapLibre (open source) + OpenFreeMap tiles (open, no key)
+   ============================================================ */
+const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
+const BLANK_STYLE = { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#f2f2f2" } }] };
+
+let map = null, mapReady = false, markers = [], legs = [], drawToken = 0, animFrame = null;
+const routeCache = {};
+
+const isPhone = () => matchMedia("(max-width: 700px)").matches;
+const toLngLat = ([lat, lng]) => [lng, lat];
+function dist(a, b) { // metres between [lng, lat] points
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (b[1] - a[1]) * r, dLng = (b[0] - a[0]) * r;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * r) * Math.cos(b[1] * r) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+async function initMap() {
+  let style = BLANK_STYLE;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    const res = await fetch(STYLE_URL, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (res.ok) style = await res.json();
+  } catch (e) { /* fall back to blank background */ }
+
+  map = new maplibregl.Map({
+    container: "map",
+    style,
+    center: [13.4, 47.6],
+    zoom: 8,
+    attributionControl: { compact: false, customAttribution: '<a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' },
+    dragRotate: false,
+    touchPitch: false,
+    cooperativeGestures: isPhone(),
+    pitchWithRotate: false,
+  });
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+
+  map.on("load", () => {
+    const empty = { type: "FeatureCollection", features: [] };
+    map.addSource("route", { type: "geojson", data: empty });
+    map.addSource("anim", { type: "geojson", data: empty });
+    map.addSource("head", { type: "geojson", data: empty });
+
+    const line = (id, src, color, dashed) => map.addLayer({
+      id, type: "line", source: src,
+      filter: ["==", ["get", "dashed"], dashed],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": color, "line-width": 4, ...(dashed ? { "line-dasharray": [0.5, 2] } : {}) },
+    });
+    line("route-solid", "route", "#000", false);
+    line("route-dash", "route", "#000", true);
+    line("anim-solid", "anim", "#000", false);
+    line("anim-dash", "anim", "#000", true);
+    map.addLayer({
+      id: "head", type: "circle", source: "head",
+      paint: { "circle-radius": 7, "circle-color": "#000", "circle-stroke-color": "#fff", "circle-stroke-width": 3 },
+    });
+
+    mapReady = true;
+    drawDay();
+  });
+
+  // The only animation: plays once each time the map is clicked.
+  map.on("click", () => playRoute());
+}
+
+function legsFor(day) {
+  const out = [];
+  let prev = null, mode = "drive", via = null;
+  for (const x of day.items) {
+    if (x.travel) { mode = x.travel; via = x.via || null; continue; }
+    if (!x.ll) continue;
+    if (prev) {
+      if (via) {
+        out.push({ from: prev, to: via.ll, mode: via.mode });
+        out.push({ from: via.ll, to: x.ll, mode });
+      } else {
+        out.push({ from: prev, to: x.ll, mode });
+      }
+    }
+    prev = x.ll; mode = "drive"; via = null;
+  }
+  return out;
+}
+
+// Real roads from the open-source OSRM demo server; straight line if unavailable.
+async function roadPath(a, b) {
+  const key = a.join() + "|" + b.join();
+  if (routeCache[key]) return routeCache[key];
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson`;
+    const js = await (await fetch(url)).json();
+    return (routeCache[key] = js.routes[0].geometry.coordinates);
+  } catch (e) {
+    return [toLngLat(a), toLngLat(b)];
+  }
+}
+
+const fc = features => ({ type: "FeatureCollection", features });
+const lineFeature = (coords, dashed) => ({ type: "Feature", properties: { dashed }, geometry: { type: "LineString", coordinates: coords } });
+
+async function drawDay() {
+  if (!mapReady) return;
+  const token = ++drawToken;
+  stopAnim();
+  markers.forEach(m => m.remove());
+  markers = [];
+  map.getSource("route").setData(fc([]));
+
+  const day = DAYS[current];
+  const pts = day.items.filter(x => x.stop && x.ll);
+
+  // numbered pins (one pin per place)
+  const seen = new Set();
+  pts.forEach((x, i) => {
+    const k = x.ll.join();
+    if (seen.has(k)) return;
+    seen.add(k);
+    const crowded = pts.some(y => y.ll !== x.ll && y.ll.join() !== k && dist(toLngLat(y.ll), toLngLat(x.ll)) < 6000);
+    const el = document.createElement("div");
+    el.className = "pin";
+    el.title = x.stop;
+    el.innerHTML = `<b>${i + 1}</b>${crowded ? "" : `<span>${x.stop}</span>`}`;
+    markers.push(new maplibregl.Marker({ element: el }).setLngLat(toLngLat(x.ll)).addTo(map));
+  });
+
+  // fit without animation
+  const b = new maplibregl.LngLatBounds();
+  pts.forEach(x => b.extend(toLngLat(x.ll)));
+  map.fitBounds(b, { padding: isPhone() ? 44 : 110, maxZoom: 13, duration: 0 });
+
+  // static route
+  legs = legsFor(day);
+  for (const l of legs) {
+    l.path = l.mode === "drive" ? await roadPath(l.from, l.to) : [toLngLat(l.from), toLngLat(l.to)];
+    if (token !== drawToken) return;
+  }
+  map.getSource("route").setData(fc(legs.map(l => lineFeature(l.path, l.mode !== "drive"))));
+}
+
+function stopAnim() {
+  if (animFrame) cancelAnimationFrame(animFrame);
+  animFrame = null;
+  if (!mapReady) return;
+  map.getSource("anim").setData(fc([]));
+  map.getSource("head").setData(fc([]));
+  ["route-solid", "route-dash"].forEach(id => map.setPaintProperty(id, "line-color", "#000"));
+}
+
+// Draws the route leg by leg over a grey copy, then leaves it black.
+function playRoute() {
+  if (!mapReady || !legs.length || !legs.every(l => l.path)) return;
+  stopAnim();
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  legs.forEach(l => {
+    l.cum = [0];
+    for (let i = 1; i < l.path.length; i++) l.cum.push(l.cum[i - 1] + dist(l.path[i - 1], l.path[i]));
+    l.len = l.cum[l.cum.length - 1] || 1;
+  });
+  const total = legs.reduce((s, l) => s + l.len, 0) || 1;
+  const TOTAL_MS = Math.min(8000, Math.max(4000, legs.length * 1000));
+  legs.forEach(l => { l.ms = Math.max(600, TOTAL_MS * (l.len / total)); });
+
+  ["route-solid", "route-dash"].forEach(id => map.setPaintProperty(id, "line-color", "#cfcfcf"));
+
+  const done = [];
+  let li = 0, start = null;
+  function frame(ts) {
+    if (start === null) start = ts;
+    const l = legs[li];
+    const t = Math.min(1, (ts - start) / l.ms);
+    const e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const part = slice(l, e * l.len);
+    map.getSource("anim").setData(fc([...done, lineFeature(part, l.mode !== "drive")]));
+    map.getSource("head").setData(fc([{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: part[part.length - 1] } }]));
+    if (t >= 1) {
+      done.push(lineFeature(l.path, l.mode !== "drive"));
+      li++;
+      if (li >= legs.length) { stopAnim(); return; }
+      start = ts + 150;
+    }
+    animFrame = requestAnimationFrame(frame);
+  }
+  animFrame = requestAnimationFrame(frame);
+}
+
+function slice(l, d) {
+  const out = [l.path[0]];
+  for (let i = 1; i < l.path.length; i++) {
+    if (l.cum[i] <= d) { out.push(l.path[i]); continue; }
+    const f = (d - l.cum[i - 1]) / ((l.cum[i] - l.cum[i - 1]) || 1);
+    const a = l.path[i - 1], b = l.path[i];
+    out.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+    break;
+  }
+  return out;
+}
+
+/* ============================================================
+   Day switching
+   ============================================================ */
+function selectDay(i) {
+  current = i;
+  renderTabs();
+  renderDay();
+  drawDay();
+}
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight" && current < DAYS.length - 1) selectDay(current + 1);
+  if (e.key === "ArrowLeft" && current > 0) selectDay(current - 1);
+});
+
+// Sidebar works even if the map library cannot load.
+selectDay(0);
+
+/* Load MapLibre (open-source map library), trying two public CDNs. */
+const MAPLIBRE_SRC = [
+  "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js",
+  "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js",
+];
+(function loadMapLib(i) {
+  if (window.maplibregl) return initMap();
+  if (i >= MAPLIBRE_SRC.length) {
+    $("map").innerHTML = '<p class="map-msg">The map could not load. Check your connection and reload the page.</p>';
+    return;
+  }
+  const s = document.createElement("script");
+  s.src = MAPLIBRE_SRC[i];
+  s.onload = initMap;
+  s.onerror = () => loadMapLib(i + 1);
+  document.head.appendChild(s);
+})(0);
+</script>
+</body>
+</html>
